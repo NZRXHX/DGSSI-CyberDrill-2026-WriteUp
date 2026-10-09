@@ -557,7 +557,50 @@ However, successfully affecting Domain Controllers would also depend on policy p
 
 The following measures are recommended to address the vulnerabilities identified throughout the attack chain and prevent similar compromises.
 
+### 1. Sensitive Data Exposure — Public Registry API
 
+- Enforce server-side authentication and authorization on sensitive API endpoints, including `/api/v1/registry`.
+- Apply data minimization by returning only fields explicitly required by the requesting user.
+- Remove sensitive information, internal flags, and secrets from publicly accessible API responses.
+
+### 2. Broken Account Recovery Flow
+
+- Never expose OTPs or recovery codes in HTTP responses.
+- Deliver recovery codes exclusively through verified out-of-band channels, such as registered phone numbers or email addresses.
+- Implement OTP expiration, single-use validation, rate limiting, and account recovery abuse detection.
+
+### 3. JWT Algorithm Confusion (RS256 → HS256)
+
+- Enforce a strict server-side allowlist of JWT signing algorithms, preferably `RS256` for the existing architecture.
+- Never allow RSA public keys to be reused as HMAC secrets.
+- Validate JWT signatures, issuers, audiences, expiration times, and key identifiers using trusted server-side configuration.
+
+### 4. Client-Controlled Authorization
+
+- Enforce role-based access control (RBAC) on every protected API endpoint.
+- Validate user roles and permissions against trusted server-side authorization data rather than relying solely on client-supplied claims.
+- Apply the principle of least privilege and prevent unauthorized access to staff-only functionality.
+
+### 5. Server-Side Template Injection (SSTI)
+
+- Never concatenate user-controlled input directly into `render_template_string()` or other template source code.
+- Pass user input as template variables and rely on proper contextual escaping.
+- Restrict application container privileges, filesystem access, and access to sensitive environment variables to reduce the impact of code execution.
+
+### 6. PostgreSQL Privilege Abuse
+
+- Remove `SUPERUSER` privileges from the application database account `mouwatin_admin`.
+- Restrict access to dangerous database capabilities, including `pg_read_file()` and `COPY ... TO PROGRAM`.
+- Use dedicated, least-privileged database roles and securely manage database credentials.
+- Isolate database containers and restrict unnecessary filesystem mounts.
+
+### 7. GNU Tar Wildcard Injection and SUID PATH Hijacking
+
+- Avoid using untrusted wildcard expansions () in privileged archive operations; use safe file selection and explicit path handling.
+- Restrict write permissions on directories processed by scheduled tasks or privileged services.
+- Remove unnecessary SUID permissions from `/usr/local/bin/archive-review`.
+- Replace relative command execution such as `system("review-status")` with absolute executable paths and a controlled execution environment.
+- Run scheduled archive services with the minimum privileges required.
 
 ### 8. Windows Service DACL Misconfiguration
 
