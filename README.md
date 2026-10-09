@@ -274,13 +274,3 @@ into `render_template_string`.
 - Disable/restrict `pg_read_server_files` and `COPY … TO/FROM PROGRAM`.
 - Do not store DB credentials where web-container code execution can read them.
 
-**Host layer**
-
-- Remove or de-privilege the setuid `archive-review`; call helpers by **absolute path** or
-`execve`, never a bare `system("review-status")`.
-- Fix the archive job: never use a glob wildcard in a writable directory; use `-` and
-absolute paths, or a manifest.
-- Never bind-mount a world-writable directory into the DB container.
-- Rotate `access.key` and all credentials; review the `ubuntu NOPASSWD:ALL` sudoers entry.
-
- 
