@@ -287,7 +287,7 @@ The enumeration revealed two interesting artifacts:
 
 These files were particularly relevant to our next objective.
 
-1. **DACL modification backups**
+**1. DACL modification backups**
 
 The `dacledit-*.bak` files suggested that Active Directory access control lists had previously been modified or backed up using Impacket's `dacledit` utility.
 
@@ -299,7 +299,7 @@ The existence of these backups was therefore a useful indication that Active Dir
 
 However, the backup filenames alone did not establish which permissions had been modified.
 
-1. **John the Ripper credential artifacts**
+**2. John the Ripper credential artifacts**
 
 The second interesting artifact was:
 
