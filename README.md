@@ -23,7 +23,7 @@ giving arbitrary file read and command execution in the DB container.
 7. **GNU tar wildcard option-injection** → **setuid PATH hijack** **:** a host archive job runs
 `tar … *` in a world-writable directory, and a setuid-root helper calls
 `system("review-status")` with a relative path, yielding root.
-8. **Windows Service DACL Misconfiguration** → **SYSTEM Escalation** **:** The n.elouafi account has SERVICE_CHANGE_CONFIG permissions on the MouwatinTelemetry service running as LocalSystem, providing a potential privilege escalation path on MOUW-WS01.
+8. **Windows Service DACL Misconfiguration** → **SYSTEM Escalation** **:** The n.elouafi account has SERVICE_CHANGE_CONFIG permissions on the MouwatinTelemetry service running as LocalSystem, providing a privilege escalation path on MOUW-WS01.
 9. **gMSA Delegation Abuse** → **GPO-Based Domain Escalation** **:** The MOUW-WS01$ computer account can retrieve the svc-policy$ gMSA password. Combined with svc-policy$ having GenericAll over the Controller Response Package GPO and n.elouafi having WriteGPLink on the Domain Controllers OU.
 
 ---
@@ -557,7 +557,7 @@ However, successfully affecting Domain Controllers would also depend on policy p
 
 The following measures are recommended to address the vulnerabilities identified throughout the attack chain and prevent similar compromises.
 
-### 1. Sensitive Data Exposure — Public Registry API
+### 1. Sensitive Data Exposure - Public Registry API
 
 - Enforce server-side authentication and authorization on sensitive API endpoints, including `/api/v1/registry`.
 - Apply data minimization by returning only fields explicitly required by the requesting user.
