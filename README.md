@@ -5,17 +5,9 @@
 ## 1. Summary
 
 The Mouwatin platform was compromised end-to-end from an unauthenticated internet-facing
-position to full root on the Linux application host. Five milestone flags were captured:
+position to full root on the Linux application host, followed by a pivot into Active Directory.
 
-| # | Milestone | Flag |
-| --- | --- | --- |
-| 1 | Flag leaked by the public registry API | `flag_d4646c6a_a576_4b03_84bf_784bf540b517` |
-| 2 | Web application container | `flag_12071765_5b1e_4518_baf5_f2cf2547fdc5` |
-| 3 | Database container | `flag_a50def27_da12_421e_96a1_fec1a0edefc0` |
-| 4 | Host / archive service (svc-archive) | `flag_4b79a60a_f8aa_4f8c_9dd5_4a477f666957` |
-| 5 | Linux administrator proof (root) | `flag_7209cce7_9a76_432e_8481_421f2835dd5e` |
-
-The chain required chaining **seven** distinct weaknesses:
+The chain required chaining multiple distinct weaknesses:
 
 1. **Sensitive-data exposure :** the public registry API injects the milestone flag into
 every one of the 500 citizen records (`app.py` reads `FLAG1_PATH`).
@@ -31,6 +23,8 @@ giving arbitrary file read and command execution in the DB container.
 7. **GNU tar wildcard option-injection** → **setuid PATH hijack** **:** a host archive job runs
 `tar … *` in a world-writable directory, and a setuid-root helper calls
 `system("review-status")` with a relative path, yielding root.
+8. **Windows Service DACL Misconfiguration** → **SYSTEM Escalation** **:** The n.elouafi account has SERVICE_CHANGE_CONFIG permissions on the MouwatinTelemetry service running as LocalSystem, providing a potential privilege escalation path on MOUW-WS01.
+9. **gMSA Delegation Abuse** → **GPO-Based Domain Escalation** **:** The MOUW-WS01$ computer account can retrieve the svc-policy$ gMSA password. Combined with svc-policy$ having GenericAll over the Controller Response Package GPO and n.elouafi having WriteGPLink on the Domain Controllers OU.
 
 ---
 
@@ -86,9 +80,6 @@ GET /api/v1/registry?scope=all
 Every one of the 500 citizen records contains a `flag` field. The application reads the
 milestone flag file (`FLAG1_PATH=/run/flags/local1.txt`) and injects its contents into each
 registry record. No authentication is required.
-
-> **Flag 1:** `flag_d4646c6a_a576_4b03_84bf_784bf540b517` (source `/run/flags/local1.txt`)
-> 
 
 ### Stage 1 - Citizen account takeover (broken recovery)
 
@@ -147,9 +138,6 @@ Command execution confirmed as user `portal` (uid 10001), working dir `/srv/app`
 hostname `77c8f0ca9753`. The web container mounts `/run/flags/local1.txt` and
 `/run/flags/local2.txt`.
 
-> **Flag 2:** `flag_12071765_5b1e_4518_baf5_f2cf2547fdc5` (source `/run/flags/local2.txt`)
-> 
-
 ### Stage 4 - Pivot to the database container (Flag 3)
 
 The web container’s environment disclosed the DB credentials:
@@ -170,9 +158,6 @@ psql -h db -U mouwatin_admin -d mouwatin -c "SELECT pg_read_file('/run/flags/loc
 The DB container mounts only `local3.txt` (the web container mounts `local1/2`), confirming
 it is the DB container’s own flag. The same superuser can also achieve command execution via
 `COPY (SELECT 1) TO PROGRAM '<shell command>'`. This last is a separate Postgres superuser feature that pipes query output into an arbitrary OS command, i.e. full **command execution**, not just file read.
-
-> **Flag 3:** `flag_a50def27_da12_421e_96a1_fec1a0edefc0` (source `/run/flags/local3.txt`)
->
 
 ### Stage 5 - Container → host (svc-archive) via tar wildcard injection (Flag 4)
 
@@ -228,10 +213,6 @@ When the timer fired, tar parsed the two `--…` filenames as options and execut
 - `/home/local1.txt … /home/local4.txt` (uid 55555, mode 644).
 - Docker socket is `root:docker 660`; svc-archive is **not** in the `docker` group (ruled out).
 
-> **Flag 4:** `flag_4b79a60a_f8aa_4f8c_9dd5_4a477f666957` (source `/home/local4.txt`)
-> 
-
-
 ### Stage 6 - svc-archive → root via setuid PATH hijack (Flag 5)
 
 `/usr/local/bin/archive-review` is setuid-root (`-rwsr-xr-x root root`, 16048 bytes) and does `setgid(0); setuid(0); system("review-status")` - a **bare, relative** name. `system()` resolves it through the caller's `PATH`.
@@ -251,8 +232,6 @@ chmod 755 /srv/mouwatin/incoming/review-status
 ```
 
 Confirmed root context: `uid=0(root) gid=0(root) groups=0(root),986(svc-archive)`.
-
-**Flag 5:** `flag_7209cce7_9a76_432e_8481_421f2835dd5e` from `/root/proof.txt` (`-r-------- root root`).
 
 **The one detail that unblocked it:** the injected script runs on the **host**, so PATH must point at `/srv/mouwatin/incoming` not the container view `/var/lib/postgresql/incoming`. With the container path the real `/usr/local/bin/review-status` won and the hijack silently failed.
 
