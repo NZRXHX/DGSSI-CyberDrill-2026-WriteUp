@@ -553,4 +553,24 @@ However, successfully affecting Domain Controllers would also depend on policy p
 
 ---
 
-## Part 11: Remediation Summary
+## Remediation Recommendations
+
+The following measures are recommended to address the vulnerabilities identified throughout the attack chain and prevent similar compromises.
+
+
+
+### 8. Windows Service DACL Misconfiguration
+
+- Remove unnecessary `SERVICE_CHANGE_CONFIG` and service-control permissions from unprivileged accounts on `MouwatinTelemetry`.
+- Restrict service configuration changes to explicitly authorized administrators.
+- Audit Windows service security descriptors and monitor unauthorized service modifications.
+- Avoid running custom services as `LocalSystem` unless strictly necessary; use dedicated least-privileged service identities.
+
+### 9. gMSA Delegation Abuse and GPO-Based Domain Escalation
+
+- Restrict gMSA password retrieval permissions to explicitly authorized computer accounts and security principals.
+- Regularly audit `msDS-GroupMSAMembership` and remove unnecessary delegations.
+- Remove excessive `GenericAll` permissions granted to `svc-policy$` on the **Controller Response Package** GPO.
+- Restrict `WriteGPLink` permissions on the **Domain Controllers OU** to trusted Domain Administrators or designated Group Policy administrators.
+- Secure both GPO modification permissions and associated SYSVOL filesystem permissions.
+- Monitor sensitive GPO modifications, OU link changes, and unauthorized policy deployments affecting Domain Controllers.
