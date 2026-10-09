@@ -174,62 +174,6 @@ it is the DB container’s own flag. The same superuser can also achieve command
 > **Flag 3:** `flag_a50def27_da12_421e_96a1_fec1a0edefc0` (source `/run/flags/local3.txt`)
 > 
 
-### Stage 5 - Container → host (svc-archive) via tar wildcard injection (Flag 4)
-
-The DB container bind-mounts the host directory `/srv/mouwatin/incoming` at
-`/var/lib/postgresql/incoming` (mode **777**). A host systemd timer
-(`mouwatin-archive.timer`, ~2-minute cycle) runs, as `svc-archive` (uid 997):
-
-```bash
-tar czf intake-<ts>.tgz *
-```
-
-The final argument introduces a critical security weakness.
-
-The `*` wildcard is expanded by the shell before GNU tar processes the command.
-
-For example, if the directory contains:
-
-```
-document.txt
-report.csv
-backup.log
-```
-
-The shell expands the command into something equivalent to:
-
-```bash
-tar czf intake-<ts>.tgz document.txt report.csv backup.log
-```
-
-The problem arises when filenames begin with characters that GNU tar interprets as command-line options.
-
-For example:
-
-```
---checkpoint=1
---checkpoint-action=exec=sh x
-```
-
-Rather than treating these values as ordinary filenames, GNU tar can interpret them as additional options.
-
-A wildcard in a writable directory is a classic GNU tar option-injection sink. Using the
-Postgres RCE (running as `postgres`, which can write into the shared dir), we dropped:
-
-- `-checkpoint=1` (empty file → becomes a tar option)
-- `-checkpoint-action=exec=sh x` (empty file → becomes a tar option)
-- `x` (a shell script containing our commands)
-
-When the timer fired, tar parsed the two `--…` filenames as options and executed
-`sh x` **as svc-archive (uid 997)** on the host. Host enumeration (via `x`) revealed:
-
-- `/usr/local/bin/archive-review` - a **setuid-root** ELF that runs
-`setgid(0); setuid(0); system("review-status")`.
-- `/home/local1.txt … /home/local4.txt` (uid 55555, mode 644).
-- Docker socket is `root:docker 660`; svc-archive is **not** in the `docker` group (ruled out).
-
-> **Flag 4:** `flag_4b79a60a_f8aa_4f8c_9dd5_4a477f666957` (source `/home/local4.txt`)
-> 
 
 ### Stage 6 - svc-archive → root via setuid PATH hijack (Flag 5)
 
